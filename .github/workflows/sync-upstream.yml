@@ -1,0 +1,33 @@
+name: Sync from upstream
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # daily at 06:00 UTC
+  workflow_dispatch: {}     # lets you trigger manually too
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/skat/dms-public.git || true
+
+      - name: Fetch upstream
+        run: git fetch upstream
+
+      - name: Check for changes
+        id: check
+        run: |
+          LOCAL=$(git rev-parse HEAD)
+          REMOTE=$(git rev-parse upstream/main)
+          echo "changed=$([ "$LOCAL" != "$REMOTE" ] && echo true || echo false)" >> $GITHUB_OUTPUT
+
+      - name: Merge and push
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git merge upstream/main --ff-only
+          git push origin HEAD
